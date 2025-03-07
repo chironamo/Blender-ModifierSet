@@ -1,0 +1,141 @@
+[
+    {
+        "Preset1": {
+            "Preference": {
+                "column_number": 3,
+                "show_mod_icon": true,
+                "show_mod_name": true,
+                "show_add_always": false,
+                "show_preset": false
+            },
+            "ModSet": [
+                {
+                    "Name": "Array",
+                    "Type": "ARRAY",
+                    "Icon": "MOD_ARRAY",
+                    "Path": "",
+                    "AssetLibrary": ""
+                },
+                {
+                    "Name": "DataTransfer",
+                    "Type": "DATA_TRANSFER",
+                    "Icon": "MOD_DATA_TRANSFER",
+                    "Path": "",
+                    "AssetLibrary": ""
+                },
+                {
+                    "Name": "WeightedNormal",
+                    "Type": "WEIGHTED_NORMAL",
+                    "Icon": "MOD_NORMALEDIT",
+                    "Path": "",
+                    "AssetLibrary": ""
+                },
+                {
+                    "Name": "Bevel",
+                    "Type": "BEVEL",
+                    "Icon": "MOD_BEVEL",
+                    "Path": "",
+                    "AssetLibrary": ""
+                },
+                {
+                    "Name": "Mirror",
+                    "Type": "MIRROR",
+                    "Icon": "MOD_MIRROR",
+                    "Path": "",
+                    "AssetLibrary": ""
+                },
+                {
+                    "Name": "Boolean",
+                    "Type": "BOOLEAN",
+                    "Icon": "MOD_BOOLEAN",
+                    "Path": "",
+                    "AssetLibrary": ""
+                },
+                {
+                    "Name": "Subdivision",
+                    "Type": "SUBSURF",
+                    "Icon": "MOD_SUBSURF",
+                    "Path": "",
+                    "AssetLibrary": ""
+                },
+                {
+                    "Name": "Shrinkwrap",
+                    "Type": "SHRINKWRAP",
+                    "Icon": "MOD_SHRINKWRAP",
+                    "Path": "",
+                    "AssetLibrary": ""
+                },
+                {
+                    "Name": "Decimate",
+                    "Type": "DECIMATE",
+                    "Icon": "MOD_DECIM",
+                    "Path": "",
+                    "AssetLibrary": ""
+                },
+                {
+                    "Name": "Multires",
+                    "Type": "MULTIRES",
+                    "Icon": "MOD_MULTIRES",
+                    "Path": "",
+                    "AssetLibrary": ""
+                },
+                {
+                    "Name": "Curve",
+                    "Type": "CURVE",
+                    "Icon": "MOD_CURVE",
+                    "Path": "",
+                    "AssetLibrary": ""
+                },
+                {
+                    "Name": "Mask",
+                    "Type": "MASK",
+                    "Icon": "MOD_MASK",
+                    "Path": "",
+                    "AssetLibrary": ""
+                },
+                {
+                    "Name": "Triangulate",
+                    "Type": "TRIANGULATE",
+                    "Icon": "MOD_TRIANGULATE",
+                    "Path": "",
+                    "AssetLibrary": ""
+                },
+                {
+                    "Name": "Solidify",
+                    "Type": "SOLIDIFY",
+                    "Icon": "MOD_SOLIDIFY",
+                    "Path": "",
+                    "AssetLibrary": ""
+                },
+                {
+                    "Name": "Skin",
+                    "Type": "SKIN",
+                    "Icon": "MOD_SKIN",
+                    "Path": "",
+                    "AssetLibrary": ""
+                },
+                {
+                    "Name": "SurfaceDeform",
+                    "Type": "SURFACE_DEFORM",
+                    "Icon": "MOD_MESHDEFORM",
+                    "Path": "",
+                    "AssetLibrary": ""
+                },
+                {
+                    "Name": "EdgeSplit",
+                    "Type": "EDGE_SPLIT",
+                    "Icon": "MOD_EDGESPLIT",
+                    "Path": "",
+                    "AssetLibrary": ""
+                },
+                {
+                    "Name": "Weld",
+                    "Type": "WELD",
+                    "Icon": "AUTOMERGE_OFF",
+                    "Path": "",
+                    "AssetLibrary": ""
+                }
+            ]
+        }
+    }
+]
