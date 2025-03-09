@@ -14,25 +14,28 @@ class MODSET_AddonPrefs(bpy.types.AddonPreferences):
         split.label(text='Prefs file :', icon_value=0)
         split_path = split.split(factor=0.8119289875030518, align=False)
         split_path.label(text=os.path.join(os.path.dirname(__file__), 'assets', 'prefs.json'), icon_value=0)
-        split_path.operator('modset.copy_prefs', text='Copy', icon_value=0, emboss=True)
+        split_path.operator('modset.open_prefs_folder', text='Open Folder', icon_value=0, emboss=True)
 
-class MODSET_CopyPrefs(bpy.types.Operator):
-    bl_idname = "modset.copy_prefs"
-    bl_label = "Copy Prefs Path"
-    bl_description = "Copy prefs file path to clipboard"
+class MODSET_OpenPrefsFolder(bpy.types.Operator):
+    bl_idname = "modset.open_prefs_folder"
+    bl_label = "Open Prefs Folder"
+    bl_description = "Open directory containing prefs file"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
-        path = os.path.join(os.path.dirname(__file__), 'assets', 'prefs.json')
         import subprocess
-        def copy2clip(txt):
-            cmd = 'echo ' + txt.strip() + '|clip'
-            return subprocess.check_call(cmd, shell=True)
-        copy2clip(path)
+        import platform
+        folder_path = os.path.join(os.path.dirname(__file__), 'assets')
+        
+        # OSごとのフォルダ開き方
+        if platform.system() == "Windows":
+            subprocess.Popen(f'explorer "{folder_path}"')
+        elif platform.system() == "Darwin":
+            subprocess.Popen(['open', folder_path])
+        else:
+            subprocess.Popen(['xdg-open', folder_path])
+            
         return {"FINISHED"}
-
-    def invoke(self, context, event):
-        return self.execute(context)
 
 # --- オペレーター ---
 class MODSET_ExpandPanel(bpy.types.Operator):
@@ -106,17 +109,8 @@ class MODSET_UserButton(bpy.types.Operator):
                 
                 # 通常モディファイヤー用のパラメーター復元処理
                 if preset.modpath == '':  # 通常モディファイヤーの場合
-                    for key, value in params.items():
-                        try:
-                            # ベクトル型のプロパティを特別処理
-                            if key in {'constant_offset_displace', 'relative_offset_displace'}:
-                                if isinstance(value, list):
-                                    setattr(new_mod, key, mathutils.Vector(value))
-                            else:
-                                setattr(new_mod, key, value)
-                            print(f"通常モディファイヤー設定成功: {key} = {value}")
-                        except Exception as e:
-                            print(f"通常モディファイヤー設定エラー [{key}]: {str(e)}")
+                    from .utils import restore_parameters
+                    restore_parameters(new_mod, params)
                 
                 # ジオメトリーノード用のパラメーター復元処理（既存の処理を維持）
                 else:  
@@ -440,7 +434,7 @@ class MODSET_Prefs(bpy.types.PropertyGroup):
 
 classes = [
     MODSET_AddonPrefs,
-    MODSET_CopyPrefs,
+    MODSET_OpenPrefsFolder,
     MODSET_ExpandPanel,
     MODSET_ToggleSetting,
     MODSET_UserButton,

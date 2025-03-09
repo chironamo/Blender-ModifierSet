@@ -221,12 +221,7 @@ def draw_edit_panel(layout_func):
     col2.operator('modset.load_preset', text='Load from Prefs', icon_value=str_to_icon('FILE_REFRESH'), emboss=True)
 
 def get_modifier_parameters(mod):
-    """
-    指定したモディファイアのパラメーターを取得します。
-    数値、文字列、真偽値はそのまま保存し、
-    Vector（iterable）の場合はリストに変換して保存します。
-    さらに、setやfrozensetなども対応するようにします。
-    """
+    """修正版：オブジェクト参照を名前で保存"""
     import mathutils
     ignore_props = {
          "show_viewport", "show_render", "show_in_editmode", "show_on_cage",
@@ -241,26 +236,57 @@ def get_modifier_parameters(mod):
 
         try:
             value = getattr(mod, prop.identifier)
-            # 明示的に Vector 型のプロパティの場合は list 化
-            if prop.identifier in {"relative_offset_displace", "constant_offset_displace"}:
+            
+            # オブジェクト参照の処理
+            if isinstance(value, bpy.types.Object):
+                params[prop.identifier] = f"OBJ:{value.name}"
+            # set型のプロパティを明示的に処理
+            elif isinstance(value, (set, frozenset)):
+                params[prop.identifier] = list(value)
+            # ベクトル型の特別処理
+            elif prop.identifier in {"constant_offset_displace", "relative_offset_displace"}:
                 params[prop.identifier] = list(value)
             elif isinstance(value, (int, float, bool, str)):
                 params[prop.identifier] = value
-            # set, frozenset も list に変換して保存
-            elif isinstance(value, (set, frozenset)):
-                params[prop.identifier] = list(value)
-            # 文字列はイテラブルであるため除外
-            elif hasattr(value, "__iter__") and not isinstance(value, str):
-                try:
-                    # 全て float 変換できれば float のリストに
-                    converted = [float(v) for v in value]
-                    params[prop.identifier] = converted
-                except Exception:
-                    # できなければそのまま list に変換
-                    params[prop.identifier] = list(value)
         except Exception:
             pass
     return params
+
+def restore_parameters(mod, params):
+    """オブジェクト参照を復元"""
+    for key, value in params.items():
+        prop = mod.bl_rna.properties.get(key)
+        if not prop:
+            continue
+
+        # セット型プロパティの処理
+        if prop.is_enum_flag and isinstance(value, list):
+            try:
+                set_value = {item for item in value if item in prop.enum_items}
+                setattr(mod, key, set_value)
+            except Exception as e:
+                print(f"設定エラー [{key}]: {str(e)}")
+        # ベクトル型の処理
+        elif key in {"constant_offset_displace", "relative_offset_displace"}:
+            try:
+                setattr(mod, key, mathutils.Vector(value))
+            except Exception as e:
+                print(f"ベクトル設定エラー [{key}]: {str(e)}")
+        # オブジェクト参照の処理
+        elif isinstance(value, str) and value.startswith("OBJ:"):
+            try:
+                obj_name = value[4:]
+                obj = bpy.data.objects.get(obj_name)
+                if obj:
+                    setattr(mod, key, obj)
+            except Exception as e:
+                print(f"オブジェクト参照エラー [{key}]: {obj_name} が見つかりません")
+        # その他のプロパティ
+        else:
+            try:
+                setattr(mod, key, value)
+            except Exception as e:
+                print(f"一般設定エラー [{key}]: {str(e)}")
 
 def get_geometry_nodes_parameters(mod):
     """ジオメトリーノードモディファイアのパラメーターを取得（コンパクトJSON対応版）"""
