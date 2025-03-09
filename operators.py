@@ -303,7 +303,6 @@ class MODSET_LoadPreset(bpy.types.Operator):
             colnum = p_data.get("column_number", 2)
             show_name = p_data.get("show_mod_name", True)
             show_icon = p_data.get("show_mod_icon", True)
-            show_add = p_data.get("show_add_always", True)
             show_preset = p_data.get("show_preset", False)
             for mod in preset_data.get("ModSet", []):
                 item = scene.modset_preset.add()
@@ -318,7 +317,6 @@ class MODSET_LoadPreset(bpy.types.Operator):
             prefs.columnnumber = colnum
             prefs.showmodicon = show_icon
             prefs.showmodname = show_name
-            prefs.showaddalways = show_add
             prefs.sna_show_preset = show_preset
         return {"FINISHED"}
 
@@ -430,7 +428,6 @@ class MODSET_Prefs(bpy.types.PropertyGroup):
     columnnumber: bpy.props.IntProperty(name='ColumnNumber', default=2, min=1, max=10, update=utils.update_colnum)
     showmodname: bpy.props.BoolProperty(name='ShowModName', default=True, update=utils.update_show_name)
     showmodicon: bpy.props.BoolProperty(name='ShowModIcon', default=False, update=utils.update_show_icon)
-    showaddalways: bpy.props.BoolProperty(name='ShowAddAlways', default=True, update=utils.update_show_add)
 
 classes = [
     MODSET_AddonPrefs,

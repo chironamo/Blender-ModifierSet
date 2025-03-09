@@ -1,6 +1,6 @@
 schema_version = "1.0.0"
 id = "modset"
-version = "0.2.2"
+version = "0.2.3"
 name = "Chiro's ModSet"
 tagline = "Modifier Set"
 maintainer = "Chiro Fujita"

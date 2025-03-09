@@ -54,12 +54,10 @@ def draw_mod_panel(self, context):
             for _ in range(colnum - rem):
                 grid.separator(factor=1.0)
 
-        # 設定モードなら追加ボタン群
+        # 設定モード時のみ表示する
         if scene.modset_setting:
             utils.draw_add_button(col)
             utils.draw_edit_panel(col)
-        elif bpy.context.scene.modset_prefs[0].showaddalways:
-            utils.draw_add_button(col)
 
 class MODSET_IconPanel(bpy.types.Panel):
     bl_label = 'New Panel'

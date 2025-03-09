@@ -40,10 +40,6 @@ def update_show_preset(self, context):
     _ = self.sna_show_preset
     bpy.ops.modset.autosave('INVOKE_DEFAULT')
 
-def update_show_add(self, context):
-    _ = self.showaddalways
-    bpy.ops.modset.autosave('INVOKE_DEFAULT')
-
 def update_show_icon(self, context):
     _ = self.showmodicon
     bpy.ops.modset.autosave('INVOKE_DEFAULT')
@@ -135,7 +131,6 @@ def save_preset_json(preset_name):
         "column_number": prefs.columnnumber,
         "show_mod_icon": prefs.showmodicon,
         "show_mod_name": prefs.showmodname,
-        "show_add_always": prefs.showaddalways,
         "show_preset": bpy.context.scene.sna_show_preset
     }
     # キーリストに Parameters を追加
@@ -216,7 +211,6 @@ def draw_edit_panel(layout_func):
     split_prop.label(text='Column', icon_value=0)
     col2.prop(bpy.context.scene.modset_prefs[0], 'showmodicon', text='Show Icon', icon_value=0, emboss=True)
     col2.prop(bpy.context.scene.modset_prefs[0], 'showmodname', text='Show Name', icon_value=0, emboss=True)
-    col2.prop(bpy.context.scene.modset_prefs[0], 'showaddalways', text='Show [+Add] always', icon_value=0, emboss=True)
     col2.operator('modset.delete_all', text='Delete all ModSet', icon_value=str_to_icon('TRASH'), emboss=True)
     col2.operator('modset.load_preset', text='Load from Prefs', icon_value=str_to_icon('FILE_REFRESH'), emboss=True)
 
