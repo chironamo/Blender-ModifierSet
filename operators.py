@@ -102,37 +102,31 @@ class MODSET_UserButton(bpy.types.Operator):
         if preset.parameters != "":
             try:
                 params = json.loads(preset.parameters)
+                print(f"適用パラメーター: {params}")
+                
                 for key, value in params.items():
-                    if hasattr(new_mod, key):
-                        prop = new_mod.bl_rna.properties.get(key)
-
-                        # FLOAT_VECTOR 型の場合（例: Array.relative_offset_displace）
-                        if prop and prop.type == 'FLOAT_VECTOR':
-                            setattr(new_mod, key, mathutils.Vector(value))
-
-                        # INT_VECTOR 型の場合
-                        elif prop and prop.type == 'INT_VECTOR':
-                            setattr(new_mod, key, tuple(int(v) for v in value))
-
-                        # BOOLEAN 型で、値がリストの場合（例: Mirror.use_axis など）
-                        elif prop and prop.type == 'BOOLEAN' and isinstance(value, list):
-                            setattr(new_mod, key, [bool(v) for v in value])
-
-                        # ENUM 型で複数選択可能な場合（内部的に set / frozenset を期待）
-                        elif prop and prop.type == 'ENUM' and isinstance(getattr(new_mod, key), (set, frozenset)):
-                            setattr(new_mod, key, set(value))
-
-                        # その他の型はそのまま設定
+                    # モディファイヤープロパティの直接代入が可能か確認
+                    try:
+                        # ベクトル型の処理
+                        if isinstance(value, (mathutils.Vector, list, tuple)):
+                            converted = [round(float(v), 4) for v in value]
+                        # オブジェクト参照の処理
+                        elif isinstance(value, str) and value.startswith("OBJ:"):
+                            obj = bpy.data.objects.get(value[4:])
                         else:
-                            setattr(new_mod, key, value)
+                            new_mod[key] = value
+                            print(f"設定成功: {key} = {value}")
+                    except KeyError:
+                        print(f"警告: プロパティ {key} は存在しません")
+                    except Exception as e:
+                        print(f"設定エラー [{key}]: {str(e)}")
+                        
             except Exception as e:
-                print("Failed to set modifier parameters: ", e)
+                print(f"パラメーター解析エラー: {str(e)}")
         return {"FINISHED"}
 
     def invoke(self, context, event):
         return self.execute(context)
-
-
 
 class MODSET_SetActiveButton(bpy.types.Operator):
     bl_idname = "modset.set_active_button"
@@ -177,6 +171,17 @@ class MODSET_AddSelected(bpy.types.Operator):
                     item.modicon = 'GEOMETRY_NODES'
                     scene.modset_active += 1
                     bpy.ops.modset.autosave('INVOKE_DEFAULT')
+                    params = utils.get_geometry_nodes_parameters(active_mod)
+                    if params:
+                        try:
+                            item.parameters = json.dumps(params, separators=(',', ':'), ensure_ascii=False)
+                            print(f"最終保存データ: {item.parameters}")
+                        except Exception as e:
+                            print(f"JSON変換エラー: {str(e)}")
+                            item.parameters = ""
+                    else:
+                        print("警告: ジオメトリーノードのパラメーターが見つかりませんでした")
+                        item.parameters = ""
                 else:
                     orig = active_mod.name
                     dot = orig.find(".")
@@ -190,6 +195,17 @@ class MODSET_AddSelected(bpy.types.Operator):
                             item.modicon = 'GEOMETRY_NODES'
                             scene.modset_active += 1
                             bpy.ops.modset.autosave('INVOKE_DEFAULT')
+                            params = utils.get_geometry_nodes_parameters(active_mod)
+                            if params:
+                                try:
+                                    item.parameters = json.dumps(params, separators=(',', ':'), ensure_ascii=False)
+                                    print(f"最終保存データ: {item.parameters}")
+                                except Exception as e:
+                                    print(f"JSON変換エラー: {str(e)}")
+                                    item.parameters = ""
+                            else:
+                                print("警告: ジオメトリーノードのパラメーターが見つかりませんでした")
+                                item.parameters = ""
                             break
             else:
                 for i, preset_item in enumerate(scene.modset_preset):
@@ -199,9 +215,16 @@ class MODSET_AddSelected(bpy.types.Operator):
             # 保存対象のモディファイヤーから全パラメーターを取得
             if active_mod.type == 'NODES':
                 params = utils.get_geometry_nodes_parameters(active_mod)
+                if params:
+                    item.parameters = json.dumps(params, separators=(',', ':'), ensure_ascii=False)
+                    print(f"最終保存データ: {item.parameters}")
+                else:
+                    print("警告: ジオメトリーノードのパラメーターが見つかりませんでした")
+                    item.parameters = ""
             else:
                 params = utils.get_modifier_parameters(active_mod)
-                item.parameters = json.dumps(params)
+                item.parameters = json.dumps(params, separators=(',', ':'), ensure_ascii=False)
+                print(f"Saved Parameters: {item.parameters}")
 
         else:
             active_mod = bpy.context.view_layer.objects.active.modifiers.active
@@ -213,7 +236,8 @@ class MODSET_AddSelected(bpy.types.Operator):
             scene.modset_active += 1
             bpy.ops.modset.autosave('INVOKE_DEFAULT')
             params = utils.get_modifier_parameters(active_mod)
-            item.parameters = json.dumps(params)
+            item.parameters = json.dumps(params, separators=(',', ':'), ensure_ascii=False)
+            print(f"Saved Parameters: {item.parameters}")
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -276,7 +300,8 @@ class MODSET_LoadPreset(bpy.types.Operator):
                 item.modicon = mod.get("Icon", "")
                 item.modpath = mod.get("Path", "")
                 item.aseetlib = mod.get("AssetLibrary", "")
-                item.parameters = mod.get("Parameters", "")
+                parameters = mod.get("Parameters", {})
+                item.parameters = parameters if isinstance(parameters, str) else json.dumps(parameters, ensure_ascii=False)
             prefs = scene.modset_prefs[0]
             prefs.columnnumber = colnum
             prefs.showmodicon = show_icon

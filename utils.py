@@ -262,6 +262,26 @@ def get_modifier_parameters(mod):
             pass
     return params
 
+def get_geometry_nodes_parameters(mod):
+    """ジオメトリーノードモディファイアのパラメーターを取得（コンパクトJSON対応版）"""
+    params = {}
+    if not mod.node_group:
+        return params
+
+    # プロパティを直接走査
+    for prop_name in mod.keys():
+        if prop_name.startswith(('Input_', 'Socket_')) and not prop_name.endswith(('_use_attribute', '_attribute_name')):
+            try:
+                value = mod[prop_name]
+                # 型に応じた簡潔な変換
+                if isinstance(value, (float, int)):
+                    params[prop_name] = round(value, 4) if isinstance(value, float) else value
+                else:
+                    params[prop_name] = value
+            except Exception as e:
+                print(f"パラメーター取得エラー [{prop_name}]: {str(e)}")
+    
+    return params
 
 def register():
     global _icons
