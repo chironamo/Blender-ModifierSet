@@ -104,23 +104,34 @@ class MODSET_UserButton(bpy.types.Operator):
                 params = json.loads(preset.parameters)
                 print(f"適用パラメーター: {params}")
                 
-                for key, value in params.items():
-                    # モディファイヤープロパティの直接代入が可能か確認
-                    try:
-                        # ベクトル型の処理
-                        if isinstance(value, (mathutils.Vector, list, tuple)):
-                            converted = [round(float(v), 4) for v in value]
-                        # オブジェクト参照の処理
-                        elif isinstance(value, str) and value.startswith("OBJ:"):
-                            obj = bpy.data.objects.get(value[4:])
-                        else:
-                            new_mod[key] = value
-                            print(f"設定成功: {key} = {value}")
-                    except KeyError:
-                        print(f"警告: プロパティ {key} は存在しません")
-                    except Exception as e:
-                        print(f"設定エラー [{key}]: {str(e)}")
-                        
+                # 通常モディファイヤー用のパラメーター復元処理
+                if preset.modpath == '':  # 通常モディファイヤーの場合
+                    for key, value in params.items():
+                        try:
+                            # ベクトル型のプロパティを特別処理
+                            if key in {'constant_offset_displace', 'relative_offset_displace'}:
+                                if isinstance(value, list):
+                                    setattr(new_mod, key, mathutils.Vector(value))
+                            else:
+                                setattr(new_mod, key, value)
+                            print(f"通常モディファイヤー設定成功: {key} = {value}")
+                        except Exception as e:
+                            print(f"通常モディファイヤー設定エラー [{key}]: {str(e)}")
+                
+                # ジオメトリーノード用のパラメーター復元処理（既存の処理を維持）
+                else:  
+                    for key, value in params.items():
+                        try:
+                            if isinstance(value, (mathutils.Vector, list, tuple)):
+                                converted = [round(float(v), 4) for v in value]
+                            elif isinstance(value, str) and value.startswith("OBJ:"):
+                                obj = bpy.data.objects.get(value[4:])
+                            else:
+                                new_mod[key] = value
+                            print(f"ジオメトリーノード設定成功: {key} = {value}")
+                        except Exception as e:
+                            print(f"ジオメトリーノード設定エラー [{key}]: {str(e)}")
+                            
             except Exception as e:
                 print(f"パラメーター解析エラー: {str(e)}")
         return {"FINISHED"}
@@ -176,12 +187,14 @@ class MODSET_AddSelected(bpy.types.Operator):
                         try:
                             item.parameters = json.dumps(params, separators=(',', ':'), ensure_ascii=False)
                             print(f"最終保存データ: {item.parameters}")
+                            bpy.ops.modset.autosave('INVOKE_DEFAULT')
                         except Exception as e:
                             print(f"JSON変換エラー: {str(e)}")
                             item.parameters = ""
                     else:
                         print("警告: ジオメトリーノードのパラメーターが見つかりませんでした")
                         item.parameters = ""
+                        bpy.ops.modset.autosave('INVOKE_DEFAULT')
                 else:
                     orig = active_mod.name
                     dot = orig.find(".")
@@ -200,12 +213,14 @@ class MODSET_AddSelected(bpy.types.Operator):
                                 try:
                                     item.parameters = json.dumps(params, separators=(',', ':'), ensure_ascii=False)
                                     print(f"最終保存データ: {item.parameters}")
+                                    bpy.ops.modset.autosave('INVOKE_DEFAULT')
                                 except Exception as e:
                                     print(f"JSON変換エラー: {str(e)}")
                                     item.parameters = ""
                             else:
                                 print("警告: ジオメトリーノードのパラメーターが見つかりませんでした")
                                 item.parameters = ""
+                                bpy.ops.modset.autosave('INVOKE_DEFAULT')
                             break
             else:
                 for i, preset_item in enumerate(scene.modset_preset):
@@ -218,13 +233,16 @@ class MODSET_AddSelected(bpy.types.Operator):
                 if params:
                     item.parameters = json.dumps(params, separators=(',', ':'), ensure_ascii=False)
                     print(f"最終保存データ: {item.parameters}")
+                    bpy.ops.modset.autosave('INVOKE_DEFAULT')
                 else:
                     print("警告: ジオメトリーノードのパラメーターが見つかりませんでした")
                     item.parameters = ""
+                    bpy.ops.modset.autosave('INVOKE_DEFAULT')
             else:
                 params = utils.get_modifier_parameters(active_mod)
                 item.parameters = json.dumps(params, separators=(',', ':'), ensure_ascii=False)
                 print(f"Saved Parameters: {item.parameters}")
+                bpy.ops.modset.autosave('INVOKE_DEFAULT')
 
         else:
             active_mod = bpy.context.view_layer.objects.active.modifiers.active
@@ -234,10 +252,10 @@ class MODSET_AddSelected(bpy.types.Operator):
             dot = orig.find(".")
             item.modname = orig[:dot] if dot != -1 else orig
             scene.modset_active += 1
-            bpy.ops.modset.autosave('INVOKE_DEFAULT')
             params = utils.get_modifier_parameters(active_mod)
             item.parameters = json.dumps(params, separators=(',', ':'), ensure_ascii=False)
             print(f"Saved Parameters: {item.parameters}")
+            bpy.ops.modset.autosave('INVOKE_DEFAULT')
         return {"FINISHED"}
 
     def invoke(self, context, event):
