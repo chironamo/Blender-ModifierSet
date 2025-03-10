@@ -258,10 +258,13 @@ def get_modifier_parameters(mod):
         try:
             value = getattr(mod, prop.identifier)
             
-            # 配列型プロパティの処理（subtypeチェックを完全に削除）
-            if prop.type == 'FLOAT' and getattr(prop, 'array_length', 0) > 0:
-                params[prop.identifier] = list(value)
-                print(f"Detected array property: {prop.identifier} (length: {prop.array_length})")  # デバッグ用
+            # 配列型プロパティの処理を改善
+            if getattr(prop, 'array_length', 0) > 0:
+                if prop.type == 'BOOLEAN':
+                    params[prop.identifier] = [bool(v) for v in value]
+                else:
+                    params[prop.identifier] = list(value)
+                print(f"Detected array property: {prop.identifier} (type: {prop.type}, length: {prop.array_length})")
                 
             # オブジェクト参照
             elif isinstance(value, bpy.types.Object):
@@ -283,14 +286,12 @@ def restore_parameters(mod, params):
         if not prop:
             continue
 
-        # 配列型プロパティの復元
-        if prop.type == 'FLOAT' and getattr(prop, 'array_length', 0) > 0:
+        # 配列型プロパティの復元処理（修正版）
+        if getattr(prop, 'array_length', 0) > 0:
             try:
-                if prop.array_length == 2:
-                    setattr(mod, key, (value[0], value[1]))
-                else:
-                    setattr(mod, key, mathutils.Vector(value))
-                print(f"Restored array: {key} = {value}")  # デバッグ用
+                # 全配列型をtupleで一括設定
+                setattr(mod, key, tuple(value))
+                print(f"Restored array: {key} = {tuple(value)}")
             except Exception as e:
                 print(f"Array restoration error [{key}]: {str(e)}")
         # オブジェクト参照処理

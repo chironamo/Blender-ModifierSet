@@ -426,6 +426,102 @@ class MODSET_Prefs(bpy.types.PropertyGroup):
     showmodname: bpy.props.BoolProperty(name='ShowModName', default=True, update=utils.update_show_name)
     showmodicon: bpy.props.BoolProperty(name='ShowModIcon', default=False, update=utils.update_show_icon)
 
+class MODSET_DebugAddAllModifiers(bpy.types.Operator):
+    """選択中のオブジェクトの全モディファイヤーをリストに追加"""
+    bl_idname = "modset.debug_add_all_modifiers"
+    bl_label = "Debug: Add All Modifiers"
+    bl_options = {'REGISTER', 'UNDO', 'INTERNAL'}
+
+    def execute(self, context):
+        import mathutils  # 追加
+        
+        obj = context.active_object
+        if not obj:
+            self.report({'ERROR'}, "No active object")
+            return {'CANCELLED'}
+
+        # モディファイヤーを上から順に追加（修正：reversedを削除）
+        for mod in obj.modifiers:
+            bpy.ops.modset.add_selected('EXEC_DEFAULT')
+            new_item = context.scene.modset_preset[-1]
+            
+            # パラメータを取得
+            params = utils.get_modifier_parameters(mod)
+            
+            # Vector型をリストに変換（operators.py内で直接処理）
+            def convert_vectors(data):
+                if isinstance(data, mathutils.Vector):
+                    return list(data)
+                elif isinstance(data, (list, tuple)):
+                    return [convert_vectors(item) for item in data]
+                elif isinstance(data, dict):
+                    return {k: convert_vectors(v) for k, v in data.items()}
+                return data
+
+            try:
+                safe_params = convert_vectors(params)
+                new_item.parameters = json.dumps(
+                    safe_params, 
+                    separators=(',', ':'), 
+                    ensure_ascii=False,
+                    default=lambda o: repr(o)  # 未知の型へのフォールバック
+                )
+            except Exception as e:
+                print(f"JSONシリアライズエラー: {str(e)}")
+                new_item.parameters = "{}"
+                continue  # エラー発生時も処理を継続
+
+            # 基本情報を設定
+            new_item.modname = mod.name
+            new_item.modtype = mod.type
+            new_item.modicon = utils.get_mod_icon(mod.type)
+
+        self.report({'INFO'}, f"Added {len(obj.modifiers)} modifiers")
+        return {'FINISHED'}
+
+class MODSET_DebugApplyAllModifiers(bpy.types.Operator):
+    """登録済みモディファイヤーを全て適用"""
+    bl_idname = "modset.debug_apply_all_modifiers"
+    bl_label = "Debug: Apply All Modifiers"
+    bl_options = {'REGISTER', 'UNDO', 'INTERNAL'}
+
+    def execute(self, context):
+        obj = context.active_object
+        if not obj:
+            self.report({'ERROR'}, "No active object")
+            return {'CANCELLED'}
+
+        # リストの順番通りにモディファイヤーを追加
+        for item in context.scene.modset_preset:
+            # モディファイヤーを追加
+            if item.modpath:
+                # ジオメトリノードの場合
+                bpy.ops.object.modifier_add_node_group('EXEC_DEFAULT',
+                    asset_library_type='CUSTOM' if item.aseetlib else 'ESSENTIALS',
+                    asset_library_identifier=item.aseetlib,
+                    relative_asset_identifier=item.modpath
+                )
+            else:
+                # 通常モディファイヤー
+                bpy.ops.object.modifier_add('EXEC_DEFAULT', type=item.modtype)
+
+            # パラメータを適用
+            new_mod = obj.modifiers[-1]
+            new_mod.show_viewport = False  # ビューポート表示をオフ
+            new_mod.show_render = True     # レンダリングは有効のまま
+            new_mod.show_in_editmode = False
+
+            # パラメータを適用
+            if item.parameters:
+                try:
+                    params = json.loads(item.parameters)
+                    utils.restore_parameters(new_mod, params)
+                except Exception as e:
+                    print(f"Error applying parameters: {str(e)}")
+
+        self.report({'INFO'}, f"Applied {len(context.scene.modset_preset)} modifiers (Viewport Hidden)")
+        return {'FINISHED'}
+
 classes = [
     MODSET_AddonPrefs,
     MODSET_OpenPrefsFolder,
@@ -443,6 +539,8 @@ classes = [
     MODSET_MoveButton,
     MODSET_ModItem,
     MODSET_Prefs,
+    MODSET_DebugAddAllModifiers,
+    MODSET_DebugApplyAllModifiers,
 ]
 
 def register():
