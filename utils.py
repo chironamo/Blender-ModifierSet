@@ -119,7 +119,7 @@ def add_to_ui_list(item):
 
 def draw_add_button(layout_func):
     row = layout_func.row(align=True)
-    row.scale_y = 2.0
+    row.scale_y = 1.8
     row.enabled = check_prop("bpy.context.object.modifiers.active.type", globals(), locals())
     row.active = check_prop("bpy.context.object.modifiers.active.type", globals(), locals())
     op = row.operator('modset.add_selected', text='Add Selected', icon_value=str_to_icon('ADD'), emboss=True)
