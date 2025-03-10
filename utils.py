@@ -3,6 +3,7 @@ import bpy.utils.previews
 import os
 import json
 import math
+import mathutils
 
 # --- Global Variables ---
 keymaps = {}
@@ -117,10 +118,11 @@ def add_to_ui_list(item):
     ])
 
 def draw_add_button(layout_func):
-    col = layout_func.column()
-    col.enabled = check_prop("bpy.context.object.modifiers.active.type", globals(), locals())
-    col.active = check_prop("bpy.context.object.modifiers.active.type", globals(), locals())
-    col.operator('modset.add_selected', text='Add Selected', icon_value=str_to_icon('ADD'), emboss=True)
+    row = layout_func.row(align=True)
+    row.scale_y = 2.0
+    row.enabled = check_prop("bpy.context.object.modifiers.active.type", globals(), locals())
+    row.active = check_prop("bpy.context.object.modifiers.active.type", globals(), locals())
+    op = row.operator('modset.add_selected', text='Add Selected', icon_value=str_to_icon('ADD'), emboss=True)
 
 def save_preset_json(preset_name):
     file_path = os.path.join(os.path.dirname(__file__), 'assets', 'prefs.json')
@@ -242,7 +244,6 @@ def draw_edit_panel(layout_func):
 
 
 def get_modifier_parameters(mod):
-    import mathutils
     ignore_props = {
         "show_viewport", "show_render", "show_in_editmode", "show_on_cage",
         "is_active", "show_expanded", "use_pin_to_last", "use_apply_on_spline"
@@ -257,19 +258,22 @@ def get_modifier_parameters(mod):
         try:
             value = getattr(mod, prop.identifier)
             
-            # Handle object references
-            if isinstance(value, bpy.types.Object):
+            # 配列型プロパティの処理（subtypeチェックを完全に削除）
+            if prop.type == 'FLOAT' and getattr(prop, 'array_length', 0) > 0:
+                params[prop.identifier] = list(value)
+                print(f"Detected array property: {prop.identifier} (length: {prop.array_length})")  # デバッグ用
+                
+            # オブジェクト参照
+            elif isinstance(value, bpy.types.Object):
                 params[prop.identifier] = f"OBJ:{value.name}"
-            # Handle set type properties explicitly
-            elif isinstance(value, (set, frozenset)):
-                params[prop.identifier] = list(value)
-            # Handle vector properties
-            elif prop.identifier in {"constant_offset_displace", "relative_offset_displace"}:
-                params[prop.identifier] = list(value)
-            # Handle basic data types
+            # 基本データ型
             elif isinstance(value, (int, float, bool, str)):
                 params[prop.identifier] = value
-        except Exception:
+            # セット型
+            elif isinstance(value, (set, frozenset)):
+                params[prop.identifier] = list(value)
+        except Exception as e:
+            print(f"Error processing {prop.identifier}: {str(e)}")
             pass
     return params
 
@@ -279,20 +283,17 @@ def restore_parameters(mod, params):
         if not prop:
             continue
 
-        # Handle enum flags
-        if prop.is_enum_flag and isinstance(value, list):
+        # 配列型プロパティの復元
+        if prop.type == 'FLOAT' and getattr(prop, 'array_length', 0) > 0:
             try:
-                set_value = {item for item in value if item in prop.enum_items}
-                setattr(mod, key, set_value)
+                if prop.array_length == 2:
+                    setattr(mod, key, (value[0], value[1]))
+                else:
+                    setattr(mod, key, mathutils.Vector(value))
+                print(f"Restored array: {key} = {value}")  # デバッグ用
             except Exception as e:
-                print(f"Enum setting error [{key}]: {str(e)}")
-        # Handle vector properties
-        elif key in {"constant_offset_displace", "relative_offset_displace"}:
-            try:
-                setattr(mod, key, mathutils.Vector(value))
-            except Exception as e:
-                print(f"Vector conversion error [{key}]: {str(e)}")
-        # Handle object references
+                print(f"Array restoration error [{key}]: {str(e)}")
+        # オブジェクト参照処理
         elif isinstance(value, str) and value.startswith("OBJ:"):
             try:
                 obj_name = value[4:]
@@ -301,7 +302,14 @@ def restore_parameters(mod, params):
                     setattr(mod, key, obj)
             except Exception as e:
                 print(f"Object reference error [{key}]: {value[4:]} not found")
-        # General property handling
+        # 列挙型フラグ処理
+        elif prop.is_enum_flag:
+            try:
+                set_value = {item for item in value if item in prop.enum_items}
+                setattr(mod, key, set_value)
+            except Exception as e:
+                print(f"Enum setting error [{key}]: {str(e)}")
+        # 基本型処理
         else:
             try:
                 setattr(mod, key, value)
