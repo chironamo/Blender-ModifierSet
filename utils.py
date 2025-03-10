@@ -206,13 +206,41 @@ def draw_edit_panel(layout_func):
     split7.separator(factor=0.0)
     col2 = split.column(align=True)
     col2.separator(factor=0.8)
+    
+    # カラム数設定
     split_prop = col2.split(factor=0.24, align=True)
     split_prop.prop(bpy.context.scene.modset_prefs[0], 'columnnumber', text='', icon_value=0, emboss=True)
     split_prop.label(text='Column', icon_value=0)
-    col2.prop(bpy.context.scene.modset_prefs[0], 'showmodicon', text='Show Icon', icon_value=0, emboss=True)
-    col2.prop(bpy.context.scene.modset_prefs[0], 'showmodname', text='Show Name', icon_value=0, emboss=True)
-    col2.operator('modset.delete_all', text='Delete all ModSet', icon_value=str_to_icon('TRASH'), emboss=True)
+    
+    # アイコンと名前の表示設定を横並びに
+    row_buttons = col2.row(align=True)
+    
+    # アイコンボタン
+    icon_btn = row_buttons.row(align=True)
+    icon_btn.prop(
+        bpy.context.scene.modset_prefs[0], 'showmodicon',
+        text="Icon",
+        icon='HIDE_OFF' if bpy.context.scene.modset_prefs[0].showmodicon else 'HIDE_ON',
+        emboss=True,
+        toggle=True
+    )
+    icon_btn.active = bpy.context.scene.modset_prefs[0].showmodicon
+    
+    # 名前ボタン
+    name_btn = row_buttons.row(align=True)
+    name_btn.prop(
+        bpy.context.scene.modset_prefs[0], 'showmodname',
+        text="Name",
+        icon='HIDE_OFF' if bpy.context.scene.modset_prefs[0].showmodname else 'HIDE_ON',
+        emboss=True,
+        toggle=True
+    )
+    name_btn.active = bpy.context.scene.modset_prefs[0].showmodname
+    
+    # その他のボタン
     col2.operator('modset.load_preset', text='Load from Prefs', icon_value=str_to_icon('FILE_REFRESH'), emboss=True)
+    col2.operator('modset.delete_all', text='Delete all ModSet', icon_value=str_to_icon('TRASH'), emboss=True)
+
 
 def get_modifier_parameters(mod):
     """修正版：オブジェクト参照を名前で保存"""
