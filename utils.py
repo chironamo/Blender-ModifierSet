@@ -1,16 +1,15 @@
-#以下はutils.py
 import bpy
 import bpy.utils.previews
 import os
 import json
 import math
 
-# --- グローバル変数 ---
+# --- Global Variables ---
 keymaps = {}
 _icons = None
 ui_data = {'values': []}
 
-# --- ユーティリティ関数 ---
+# --- Utility Functions ---
 def str_to_int(val):
     return int(val) if val.isdigit() else 0
 
@@ -27,7 +26,7 @@ def check_prop(prop_path, glob, loc):
     except Exception:
         return False
 
-# --- Update Callback 関数 ---
+# --- Update Callback Functions ---
 def update_colnum(self, context):
     _ = self.columnnumber
     bpy.ops.modset.autosave('INVOKE_DEFAULT')
@@ -107,7 +106,7 @@ def get_mod_icon(val):
     return mapping.get(val, '')
 
 def add_to_ui_list(item):
-    # ui_data['values'] に、Parameters項目も追加する
+    # Add parameters to ui_data['values']
     ui_data['values'].append([
         item.modname,
         item.modtype,
@@ -133,7 +132,7 @@ def save_preset_json(preset_name):
         "show_mod_name": prefs.showmodname,
         "show_preset": bpy.context.scene.sna_show_preset
     }
-    # キーリストに Parameters を追加
+    
     keys = ["Name", "Type", "Icon", "Path", "AssetLibrary", "Parameters"]
     preset_data = [dict(zip(keys, vals)) for vals in template_vals]
     data = {preset_name: {"Preference": pref_data, "ModSet": preset_data}}
@@ -207,15 +206,15 @@ def draw_edit_panel(layout_func):
     col2 = split.column(align=True)
     col2.separator(factor=0.8)
     
-    # カラム数設定
+    # Column number setting
     split_prop = col2.split(factor=0.24, align=True)
     split_prop.prop(bpy.context.scene.modset_prefs[0], 'columnnumber', text='', icon_value=0, emboss=True)
     split_prop.label(text='Column', icon_value=0)
     
-    # アイコンと名前の表示設定を横並びに
+
     row_buttons = col2.row(align=True)
     
-    # アイコンボタン
+    # Icon button
     icon_btn = row_buttons.row(align=True)
     icon_btn.prop(
         bpy.context.scene.modset_prefs[0], 'showmodicon',
@@ -226,7 +225,7 @@ def draw_edit_panel(layout_func):
     )
     icon_btn.active = bpy.context.scene.modset_prefs[0].showmodicon
     
-    # 名前ボタン
+    # Name button
     name_btn = row_buttons.row(align=True)
     name_btn.prop(
         bpy.context.scene.modset_prefs[0], 'showmodname',
@@ -237,17 +236,16 @@ def draw_edit_panel(layout_func):
     )
     name_btn.active = bpy.context.scene.modset_prefs[0].showmodname
     
-    # その他のボタン
+    # Other buttons
     col2.operator('modset.load_preset', text='Load from Prefs', icon_value=str_to_icon('FILE_REFRESH'), emboss=True)
     col2.operator('modset.delete_all', text='Delete all ModSet', icon_value=str_to_icon('TRASH'), emboss=True)
 
 
 def get_modifier_parameters(mod):
-    """修正版：オブジェクト参照を名前で保存"""
     import mathutils
     ignore_props = {
-         "show_viewport", "show_render", "show_in_editmode", "show_on_cage",
-         "is_active", "show_expanded", "use_pin_to_last", "use_apply_on_spline"
+        "show_viewport", "show_render", "show_in_editmode", "show_on_cage",
+        "is_active", "show_expanded", "use_pin_to_last", "use_apply_on_spline"
     }
     params = {}
     for prop in mod.bl_rna.properties:
@@ -259,15 +257,16 @@ def get_modifier_parameters(mod):
         try:
             value = getattr(mod, prop.identifier)
             
-            # オブジェクト参照の処理
+            # Handle object references
             if isinstance(value, bpy.types.Object):
                 params[prop.identifier] = f"OBJ:{value.name}"
-            # set型のプロパティを明示的に処理
+            # Handle set type properties explicitly
             elif isinstance(value, (set, frozenset)):
                 params[prop.identifier] = list(value)
-            # ベクトル型の特別処理
+            # Handle vector properties
             elif prop.identifier in {"constant_offset_displace", "relative_offset_displace"}:
                 params[prop.identifier] = list(value)
+            # Handle basic data types
             elif isinstance(value, (int, float, bool, str)):
                 params[prop.identifier] = value
         except Exception:
@@ -275,26 +274,25 @@ def get_modifier_parameters(mod):
     return params
 
 def restore_parameters(mod, params):
-    """オブジェクト参照を復元"""
     for key, value in params.items():
         prop = mod.bl_rna.properties.get(key)
         if not prop:
             continue
 
-        # セット型プロパティの処理
+        # Handle enum flags
         if prop.is_enum_flag and isinstance(value, list):
             try:
                 set_value = {item for item in value if item in prop.enum_items}
                 setattr(mod, key, set_value)
             except Exception as e:
-                print(f"設定エラー [{key}]: {str(e)}")
-        # ベクトル型の処理
+                print(f"Enum setting error [{key}]: {str(e)}")
+        # Handle vector properties
         elif key in {"constant_offset_displace", "relative_offset_displace"}:
             try:
                 setattr(mod, key, mathutils.Vector(value))
             except Exception as e:
-                print(f"ベクトル設定エラー [{key}]: {str(e)}")
-        # オブジェクト参照の処理
+                print(f"Vector conversion error [{key}]: {str(e)}")
+        # Handle object references
         elif isinstance(value, str) and value.startswith("OBJ:"):
             try:
                 obj_name = value[4:]
@@ -302,32 +300,29 @@ def restore_parameters(mod, params):
                 if obj:
                     setattr(mod, key, obj)
             except Exception as e:
-                print(f"オブジェクト参照エラー [{key}]: {obj_name} が見つかりません")
-        # その他のプロパティ
+                print(f"Object reference error [{key}]: {value[4:]} not found")
+        # General property handling
         else:
             try:
                 setattr(mod, key, value)
             except Exception as e:
-                print(f"一般設定エラー [{key}]: {str(e)}")
+                print(f"Property assignment error [{key}]: {str(e)}")
 
 def get_geometry_nodes_parameters(mod):
-    """ジオメトリーノードモディファイアのパラメーターを取得（コンパクトJSON対応版）"""
     params = {}
     if not mod.node_group:
         return params
 
-    # プロパティを直接走査
     for prop_name in mod.keys():
         if prop_name.startswith(('Input_', 'Socket_')) and not prop_name.endswith(('_use_attribute', '_attribute_name')):
             try:
                 value = mod[prop_name]
-                # 型に応じた簡潔な変換
                 if isinstance(value, (float, int)):
                     params[prop_name] = round(value, 4) if isinstance(value, float) else value
                 else:
                     params[prop_name] = value
             except Exception as e:
-                print(f"パラメーター取得エラー [{prop_name}]: {str(e)}")
+                print(f"Parameter extraction error [{prop_name}]: {str(e)}")
     
     return params
 

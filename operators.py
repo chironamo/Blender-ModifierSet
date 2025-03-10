@@ -1,18 +1,17 @@
-#以下はoperators.py
 import bpy
 import os
 import json
 from . import utils
 
-# --- アドオン設定 ---
+# --- Add-on Preferences ---
 class MODSET_AddonPrefs(bpy.types.AddonPreferences):
     bl_idname = __package__
 
     def draw(self, context):
         layout = self.layout
-        split = layout.split(factor=0.12842649221420288, align=False)
+        split = layout.split(factor=0.12843, align=False)
         split.label(text='Prefs file :', icon_value=0)
-        split_path = split.split(factor=0.8119289875030518, align=False)
+        split_path = split.split(factor=0.81193, align=False)
         split_path.label(text=os.path.join(os.path.dirname(__file__), 'assets', 'prefs.json'), icon_value=0)
         split_path.operator('modset.open_prefs_folder', text='Open Folder', icon_value=0, emboss=True)
 
@@ -27,7 +26,7 @@ class MODSET_OpenPrefsFolder(bpy.types.Operator):
         import platform
         folder_path = os.path.join(os.path.dirname(__file__), 'assets')
         
-        # OSごとのフォルダ開き方
+        # open folder based on OS
         if platform.system() == "Windows":
             subprocess.Popen(f'explorer "{folder_path}"')
         elif platform.system() == "Darwin":
@@ -37,7 +36,7 @@ class MODSET_OpenPrefsFolder(bpy.types.Operator):
             
         return {"FINISHED"}
 
-# --- オペレーター ---
+# operator
 class MODSET_ExpandPanel(bpy.types.Operator):
     bl_idname = "modset.expand_panel"
     bl_label = "Expand Panel"
@@ -79,7 +78,7 @@ class MODSET_UserButton(bpy.types.Operator):
         scene = bpy.context.scene
         preset = scene.modset_preset[self.collection_index]
         
-        # ノードグループによるモディファイヤー追加の場合
+        # Handle geometry node modifiers
         if preset.modpath != '':
             if preset.aseetlib == '':
                 bpy.ops.object.modifier_add_node_group(
@@ -95,24 +94,24 @@ class MODSET_UserButton(bpy.types.Operator):
                     asset_library_identifier=preset.aseetlib,
                     relative_asset_identifier=preset.modpath
                 )
-        # 通常のモディファイヤー追加の場合
+        # Handle standard modifiers
         else:
             bpy.ops.object.modifier_add('INVOKE_DEFAULT', type=preset.modtype)
         
         new_mod = bpy.context.object.modifiers.active
         
-        # 保存されたパラメーターがあれば復元する
+        # Restore saved parameters
         if preset.parameters != "":
             try:
                 params = json.loads(preset.parameters)
-                print(f"適用パラメーター: {params}")
+                print(f"Applied parameters: {params}")
                 
-                # 通常モディファイヤー用のパラメーター復元処理
-                if preset.modpath == '':  # 通常モディファイヤーの場合
+                # Standard modifier parameter restoration
+                if preset.modpath == '':
                     from .utils import restore_parameters
                     restore_parameters(new_mod, params)
                 
-                # ジオメトリーノード用のパラメーター復元処理（既存の処理を維持）
+                # Geometry nodes parameter handling
                 else:  
                     for key, value in params.items():
                         try:
@@ -122,12 +121,12 @@ class MODSET_UserButton(bpy.types.Operator):
                                 obj = bpy.data.objects.get(value[4:])
                             else:
                                 new_mod[key] = value
-                            print(f"ジオメトリーノード設定成功: {key} = {value}")
+                            print(f"Successfully set geometry node: {key} = {value}")
                         except Exception as e:
-                            print(f"ジオメトリーノード設定エラー [{key}]: {str(e)}")
+                            print(f"Geometry node setting error [{key}]: {str(e)}")
                             
             except Exception as e:
-                print(f"パラメーター解析エラー: {str(e)}")
+                print(f"Parameter parsing error: {str(e)}")
         return {"FINISHED"}
 
     def invoke(self, context, event):
@@ -180,13 +179,13 @@ class MODSET_AddSelected(bpy.types.Operator):
                     if params:
                         try:
                             item.parameters = json.dumps(params, separators=(',', ':'), ensure_ascii=False)
-                            print(f"最終保存データ: {item.parameters}")
+                            print(f"Final saved data: {item.parameters}")
                             bpy.ops.modset.autosave('INVOKE_DEFAULT')
                         except Exception as e:
-                            print(f"JSON変換エラー: {str(e)}")
+                            print(f"JSON serialization error: {str(e)}")
                             item.parameters = ""
                     else:
-                        print("警告: ジオメトリーノードのパラメーターが見つかりませんでした")
+                        print("Warning: No parameters found in geometry nodes")
                         item.parameters = ""
                         bpy.ops.modset.autosave('INVOKE_DEFAULT')
                 else:
@@ -206,13 +205,13 @@ class MODSET_AddSelected(bpy.types.Operator):
                             if params:
                                 try:
                                     item.parameters = json.dumps(params, separators=(',', ':'), ensure_ascii=False)
-                                    print(f"最終保存データ: {item.parameters}")
+                                    print(f"Final saved data: {item.parameters}")
                                     bpy.ops.modset.autosave('INVOKE_DEFAULT')
                                 except Exception as e:
-                                    print(f"JSON変換エラー: {str(e)}")
+                                    print(f"JSON serialization error: {str(e)}")
                                     item.parameters = ""
                             else:
-                                print("警告: ジオメトリーノードのパラメーターが見つかりませんでした")
+                                print("Warning: No parameters found in geometry nodes")
                                 item.parameters = ""
                                 bpy.ops.modset.autosave('INVOKE_DEFAULT')
                             break
@@ -221,15 +220,15 @@ class MODSET_AddSelected(bpy.types.Operator):
                     if preset_item == item:
                         scene.modset_preset.remove(i)
                         break
-            # 保存対象のモディファイヤーから全パラメーターを取得
+            # Retrieve all parameters from the target modifier
             if active_mod.type == 'NODES':
                 params = utils.get_geometry_nodes_parameters(active_mod)
                 if params:
                     item.parameters = json.dumps(params, separators=(',', ':'), ensure_ascii=False)
-                    print(f"最終保存データ: {item.parameters}")
+                    print(f"Final saved data: {item.parameters}")
                     bpy.ops.modset.autosave('INVOKE_DEFAULT')
                 else:
-                    print("警告: ジオメトリーノードのパラメーターが見つかりませんでした")
+                    print("Warning: No parameters found in geometry nodes")
                     item.parameters = ""
                     bpy.ops.modset.autosave('INVOKE_DEFAULT')
             else:
@@ -413,14 +412,12 @@ class MODSET_MoveButton(bpy.types.Operator):
     def invoke(self, context, event):
         return self.execute(context)
 
-# --- プロパティグループ ---
 class MODSET_ModItem(bpy.types.PropertyGroup):
     modname: bpy.props.StringProperty(name='MODNAME', default='')
     modtype: bpy.props.StringProperty(name='MODTYPE', default='')
     modicon: bpy.props.StringProperty(name='MODICON', default='')
     modpath: bpy.props.StringProperty(name='MODPATH', default='', subtype='FILE_PATH')
     aseetlib: bpy.props.StringProperty(name='ASEETLIB', default='')
-    # 新たに全パラメーターを保存するためのプロパティ
     parameters: bpy.props.StringProperty(name='Parameters', default='')
 
 class MODSET_Prefs(bpy.types.PropertyGroup):

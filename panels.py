@@ -1,4 +1,3 @@
-#以下はpanels.py
 import bpy
 from . import utils
 
@@ -7,7 +6,6 @@ def draw_mod_panel(self, context):
     layout = self.layout
     box = layout.box()
     row = box.row(align=True)
-    # 折りたたみボタン
     op = row.operator(
         'modset.expand_panel',
         text='',
@@ -47,14 +45,12 @@ def draw_mod_panel(self, context):
                 )
                 op.collection_index = i
 
-        # グリッド余白埋め
         colnum = bpy.context.scene.modset_prefs[0].columnnumber
         rem = len(scene.modset_preset) % colnum
         if rem:
             for _ in range(colnum - rem):
                 grid.separator(factor=1.0)
 
-        # 設定モード時のみ表示する
         if scene.modset_setting:
             utils.draw_add_button(col)
             utils.draw_edit_panel(col)
