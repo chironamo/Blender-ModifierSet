@@ -240,7 +240,11 @@ def draw_edit_panel(layout_func):
     
     # Other buttons
     col2.operator('modset.load_preset', text='Load from Prefs', icon_value=str_to_icon('FILE_REFRESH'), emboss=True)
-    col2.operator('modset.delete_all', text='Delete all ModSet', icon_value=str_to_icon('TRASH'), emboss=True)
+    
+    # Delete Allボタンを赤く表示
+    delete_row = col2.row()
+    delete_row.alert = True  # 警告色（赤）で表示
+    delete_row.operator('modset.delete_all', text='Delete all ModSet', icon_value=str_to_icon('TRASH'), emboss=True)
 
 
 def get_modifier_parameters(mod):
@@ -248,28 +252,44 @@ def get_modifier_parameters(mod):
         "show_viewport", "show_render", "show_in_editmode", "show_on_cage",
         "is_active", "show_expanded", "use_pin_to_last", "use_apply_on_spline"
     }
+    
+    # Hook モディファイヤーの内部パラメータを無視
+    hook_internal_props = {"matrix_inverse", "center", "matrix"}
+    
     params = {}
     for prop in mod.bl_rna.properties:
         if prop.is_readonly:
             continue
         if prop.identifier in {'name', 'type', 'rna_type'} or prop.identifier in ignore_props:
             continue
-
+        if mod.type == 'HOOK' and prop.identifier in hook_internal_props:
+            continue
+        
         try:
             value = getattr(mod, prop.identifier)
             
-            # 配列型プロパティの処理を改善
+            # コレクション参照の特別処理（Booleanモディファイヤーなど）
+            if prop.type == 'POINTER' and prop.identifier == 'collection' and value:
+                if hasattr(value, "name"):
+                    params['collection_name'] = value.name  # コレクション名を保存
+                continue
+            # その他のオブジェクト参照は無視
+            elif prop.type == 'POINTER':
+                continue
+                
+            # 配列型プロパティの処理
             if getattr(prop, 'array_length', 0) > 0:
                 if prop.type == 'BOOLEAN':
                     params[prop.identifier] = [bool(v) for v in value]
                 else:
                     params[prop.identifier] = list(value)
-                print(f"Detected array property: {prop.identifier} (type: {prop.type}, length: {prop.array_length})")
-                
-            # オブジェクト参照
-            elif isinstance(value, bpy.types.Object):
-                params[prop.identifier] = f"OBJ:{value.name}"
-            # 基本データ型
+            # コレクション型の処理（単純に名前リストとして保存）
+            elif prop.type == 'COLLECTION' and value:
+                # 名前のリストとして保存するだけ
+                names = [item.name for item in value if hasattr(item, "name")]
+                if names:  # 空リストは保存しない
+                    params[prop.identifier] = names
+            # 基本データ型のみ保存
             elif isinstance(value, (int, float, bool, str)):
                 params[prop.identifier] = value
             # セット型
@@ -277,32 +297,49 @@ def get_modifier_parameters(mod):
                 params[prop.identifier] = list(value)
         except Exception as e:
             print(f"Error processing {prop.identifier}: {str(e)}")
-            pass
     return params
 
 def restore_parameters(mod, params):
+    # コレクション名からコレクション参照へ変換（Booleanモディファイヤーなど）
+    if 'collection_name' in params and hasattr(mod, 'collection'):
+        collection_name = params.pop('collection_name')
+        # シーン内のコレクションを検索
+        collection = bpy.data.collections.get(collection_name)
+        if collection:
+            mod.collection = collection
+            print(f"Restored collection reference: {collection_name}")
+        else:
+            print(f"Warning: Collection {collection_name} not found")
+    
     for key, value in params.items():
         prop = mod.bl_rna.properties.get(key)
         if not prop:
             continue
 
-        # 配列型プロパティの復元処理（修正版）
-        if getattr(prop, 'array_length', 0) > 0:
+        # コレクションの復元（リストとして保存されている場合）
+        if prop.type == 'COLLECTION' and isinstance(value, list) and all(isinstance(item, str) for item in value):
             try:
-                # 全配列型をtupleで一括設定
+                # 既存のコレクションをクリア
+                if hasattr(getattr(mod, key), "clear"):
+                    getattr(mod, key).clear()
+                
+                # 名前リストからコレクション項目を追加
+                coll = getattr(mod, key)
+                for name in value:
+                    if hasattr(coll, "add"):
+                        item = coll.add()
+                        if hasattr(item, "name"):
+                            item.name = name
+            except Exception as e:
+                print(f"Collection restoration error [{key}]: {str(e)}")
+            continue
+
+        # 配列型プロパティの復元処理
+        elif getattr(prop, 'array_length', 0) > 0:
+            try:
                 setattr(mod, key, tuple(value))
-                print(f"Restored array: {key} = {tuple(value)}")
             except Exception as e:
                 print(f"Array restoration error [{key}]: {str(e)}")
-        # オブジェクト参照処理
-        elif isinstance(value, str) and value.startswith("OBJ:"):
-            try:
-                obj_name = value[4:]
-                obj = bpy.data.objects.get(obj_name)
-                if obj:
-                    setattr(mod, key, obj)
-            except Exception as e:
-                print(f"Object reference error [{key}]: {value[4:]} not found")
         # 列挙型フラグ処理
         elif prop.is_enum_flag:
             try:
@@ -317,6 +354,31 @@ def restore_parameters(mod, params):
             except Exception as e:
                 print(f"Property assignment error [{key}]: {str(e)}")
 
+def safe_serialize(value):
+    """あらゆるBlenderデータ型を安全にJSON化できる形式に変換する"""
+    # Vector型などmathutilsオブジェクトの処理
+    if hasattr(value, "to_list"):
+        return value.to_list()
+    # IDPropertyArray型の処理
+    elif hasattr(value, "__class__") and value.__class__.__name__ == 'IDPropertyArray':
+        return list(value)
+    # リスト/タプル型の処理（内部要素も再帰的に処理）
+    elif isinstance(value, (list, tuple)):
+        return [safe_serialize(item) for item in value]
+    # 辞書型の処理（内部要素も再帰的に処理）
+    elif isinstance(value, dict):
+        return {k: safe_serialize(v) for k, v in value.items()}
+    # 集合型の処理
+    elif isinstance(value, (set, frozenset)):
+        return [safe_serialize(item) for item in value]
+    # 基本型はそのまま返す
+    elif isinstance(value, (int, float, bool, str, type(None))):
+        return value
+    # その他の型は無視（文字列表現を返すオプションもあり）
+    else:
+        print(f"Unsupported type: {type(value).__name__}")
+        return None
+
 def get_geometry_nodes_parameters(mod):
     params = {}
     if not mod.node_group:
@@ -326,10 +388,25 @@ def get_geometry_nodes_parameters(mod):
         if prop_name.startswith(('Input_', 'Socket_')) and not prop_name.endswith(('_use_attribute', '_attribute_name')):
             try:
                 value = mod[prop_name]
-                if isinstance(value, (float, int)):
-                    params[prop_name] = round(value, 4) if isinstance(value, float) else value
-                else:
-                    params[prop_name] = value
+                
+                # コレクション参照を名前として処理
+                if hasattr(value, "bl_rna") and value.bl_rna.identifier == 'Collection':
+                    params[prop_name] = value.name
+                    continue
+                
+                # オブジェクト参照は無視
+                if isinstance(value, bpy.types.Object):
+                    continue
+                
+                # 特殊な型を処理
+                if hasattr(value, "to_list"):
+                    params[prop_name] = value.to_list()
+                elif hasattr(value, "__class__") and value.__class__.__name__ == 'IDPropertyArray':
+                    params[prop_name] = list(value)
+                # 基本的なデータ型
+                elif isinstance(value, (int, float, bool, str, list, tuple)):
+                    params[prop_name] = safe_serialize(value)
+                
             except Exception as e:
                 print(f"Parameter extraction error [{prop_name}]: {str(e)}")
     

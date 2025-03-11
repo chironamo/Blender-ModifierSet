@@ -74,7 +74,6 @@ class MODSET_UserButton(bpy.types.Operator):
     collection_index: bpy.props.IntProperty(name='collection index', default=0)
 
     def execute(self, context):
-        import mathutils
         scene = bpy.context.scene
         preset = scene.modset_preset[self.collection_index]
         
@@ -100,31 +99,54 @@ class MODSET_UserButton(bpy.types.Operator):
         
         new_mod = bpy.context.object.modifiers.active
         
-        # Restore saved parameters
+        # ジオメトリノードパラメータ処理の簡略化
         if preset.parameters != "":
             try:
                 params = json.loads(preset.parameters)
-                print(f"Applied parameters: {params}")
                 
-                # Standard modifier parameter restoration
+                # 標準モディファイヤーパラメータの復元
                 if preset.modpath == '':
                     from .utils import restore_parameters
                     restore_parameters(new_mod, params)
                 
-                # Geometry nodes parameter handling
+                # ジオメトリノードパラメータ処理の簡略化
                 else:  
                     for key, value in params.items():
-                        try:
-                            if isinstance(value, (mathutils.Vector, list, tuple)):
-                                converted = [round(float(v), 4) for v in value]
-                            elif isinstance(value, str) and value.startswith("OBJ:"):
-                                obj = bpy.data.objects.get(value[4:])
-                            else:
+                        # コレクション名参照の処理
+                        if isinstance(value, str):
+                            try:
+                                # シーン内のコレクションを検索してみる
+                                collection = bpy.data.collections.get(value)
+                                if collection and key in new_mod:
+                                    # コレクション参照をセット
+                                    new_mod[key] = collection
+                                    print(f"Restored collection reference for GN: {key} = {value}")
+                                    continue
+                                else:
+                                    # コレクションが見つからない場合は通常の文字列として設定
+                                    new_mod[key] = value
+                            except Exception as e:
+                                print(f"Failed to set collection value [{key}]: {str(e)}")
                                 new_mod[key] = value
-                            print(f"Successfully set geometry node: {key} = {value}")
-                        except Exception as e:
-                            print(f"Geometry node setting error [{key}]: {str(e)}")
-                            
+                        # オブジェクト参照などの複雑な値は無視し、基本的なデータ型のみを設定
+                        elif isinstance(value, (int, float, bool)):
+                            try:
+                                new_mod[key] = value
+                            except Exception as e:
+                                print(f"Failed to set value [{key}]: {str(e)}")
+                        # リスト型の値の処理
+                        elif isinstance(value, list):
+                            try:
+                                new_mod[key] = value
+                            except Exception as e:
+                                print(f"Failed to set list value [{key}]: {str(e)}")
+                
+                # ジオメトリノードの場合、ビューポート更新を強制する
+                if preset.modpath != '' or new_mod.type == 'NODES':
+                    # モディファイヤーの表示状態を切り替えて強制的に更新させる
+                    current_state = new_mod.show_viewport
+                    new_mod.show_viewport = not current_state
+                    new_mod.show_viewport = current_state
             except Exception as e:
                 print(f"Parameter parsing error: {str(e)}")
         return {"FINISHED"}
@@ -433,49 +455,66 @@ class MODSET_DebugAddAllModifiers(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO', 'INTERNAL'}
 
     def execute(self, context):
-        import mathutils  # 追加
-        
         obj = context.active_object
         if not obj:
             self.report({'ERROR'}, "No active object")
             return {'CANCELLED'}
 
-        # モディファイヤーを上から順に追加（修正：reversedを削除）
         for mod in obj.modifiers:
-            bpy.ops.modset.add_selected('EXEC_DEFAULT')
-            new_item = context.scene.modset_preset[-1]
+            # リストに新しいアイテムを追加
+            item = context.scene.modset_preset.add()
             
-            # パラメータを取得
-            params = utils.get_modifier_parameters(mod)
+            # GeometryNodesかどうかをチェック
+            if mod.type == 'NODES' and mod.node_group:
+                # ジオメトリノードの場合の処理
+                item.modtype = mod.type
+                item.modicon = 'GEOMETRY_NODES'
+                item.modname = mod.name
+                
+                # アセットライブラリから追加されたノードグループの処理
+                if hasattr(mod.node_group, 'library_weak_reference') and mod.node_group.library_weak_reference:
+                    filepath = mod.node_group.library_weak_reference.filepath
+                    
+                    # Blender内蔵アセットの場合
+                    if os.path.dirname(bpy.app.binary_path) in filepath:
+                        modname = mod.name.split('.')[0] if '.' in mod.name else mod.name
+                        item.modpath = os.path.join(filepath, 'NodeTree', modname).split('assets\\')[1]
+                        item.aseetlib = ''
+                    # カスタムアセットライブラリの場合
+                    else:
+                        modname = mod.name.split('.')[0] if '.' in mod.name else mod.name
+                        for lib in context.preferences.filepaths.asset_libraries:
+                            if lib.path in filepath:
+                                item.aseetlib = lib.name
+                                item.modpath = os.path.join(
+                                    os.path.basename(filepath),
+                                    'NodeTree', 
+                                    modname
+                                )
+                                break
+                
+                # ジオメトリノードのパラメータを取得
+                params = utils.get_geometry_nodes_parameters(mod)
+            else:
+                # 通常のモディファイヤーの場合
+                item.modtype = mod.type
+                item.modicon = utils.get_mod_icon(mod.type)
+                item.modname = mod.name
+                item.modpath = ''
+                item.aseetlib = ''
+                
+                # 通常のモディファイヤーパラメータを取得
+                params = utils.get_modifier_parameters(mod)
             
-            # Vector型をリストに変換（operators.py内で直接処理）
-            def convert_vectors(data):
-                if isinstance(data, mathutils.Vector):
-                    return list(data)
-                elif isinstance(data, (list, tuple)):
-                    return [convert_vectors(item) for item in data]
-                elif isinstance(data, dict):
-                    return {k: convert_vectors(v) for k, v in data.items()}
-                return data
-
+            # パラメータをシリアライズして保存
             try:
-                safe_params = convert_vectors(params)
-                new_item.parameters = json.dumps(
-                    safe_params, 
-                    separators=(',', ':'), 
-                    ensure_ascii=False,
-                    default=lambda o: repr(o)  # 未知の型へのフォールバック
-                )
+                item.parameters = json.dumps(params, separators=(',', ':'), ensure_ascii=False)
+                print(f"保存したパラメータ({mod.name}): {params}")
             except Exception as e:
-                print(f"JSONシリアライズエラー: {str(e)}")
-                new_item.parameters = "{}"
-                continue  # エラー発生時も処理を継続
-
-            # 基本情報を設定
-            new_item.modname = mod.name
-            new_item.modtype = mod.type
-            new_item.modicon = utils.get_mod_icon(mod.type)
-
+                print(f"パラメータシリアライズエラー({mod.name}): {str(e)}")
+                item.parameters = "{}"
+        
+        bpy.ops.modset.autosave('INVOKE_DEFAULT')
         self.report({'INFO'}, f"Added {len(obj.modifiers)} modifiers")
         return {'FINISHED'}
 
@@ -493,33 +532,118 @@ class MODSET_DebugApplyAllModifiers(bpy.types.Operator):
 
         # リストの順番通りにモディファイヤーを追加
         for item in context.scene.modset_preset:
-            # モディファイヤーを追加
-            if item.modpath:
+            try:
                 # ジオメトリノードの場合
-                bpy.ops.object.modifier_add_node_group('EXEC_DEFAULT',
-                    asset_library_type='CUSTOM' if item.aseetlib else 'ESSENTIALS',
-                    asset_library_identifier=item.aseetlib,
-                    relative_asset_identifier=item.modpath
-                )
-            else:
-                # 通常モディファイヤー
-                bpy.ops.object.modifier_add('EXEC_DEFAULT', type=item.modtype)
+                if item.modtype == 'NODES' or item.modpath:
+                    if item.modpath:
+                        # アセットライブラリからジオメトリノードを追加
+                        lib_type = 'CUSTOM' if item.aseetlib else 'ESSENTIALS'
+                        
+                        # 既存のノードグループを削除して追加する方式
+                        if hasattr(bpy.ops.object, 'modifier_add_node_group'):
+                            bpy.ops.object.modifier_add_node_group(
+                                'EXEC_DEFAULT',
+                                asset_library_type=lib_type,
+                                asset_library_identifier=item.aseetlib,
+                                relative_asset_identifier=item.modpath
+                            )
+                        else:
+                            # fallback: 別のモディファイヤー追加方法
+                            print(f"ノードグループを直接追加できません: {item.modpath}")
+                            continue
+                    else:
+                        # 標準ジオメトリノード
+                        bpy.ops.object.modifier_add('EXEC_DEFAULT', type='NODES')
+                else:
+                    # 通常のモディファイヤー
+                    bpy.ops.object.modifier_add('EXEC_DEFAULT', type=item.modtype)
+                
+                # 追加されたモディファイヤーを取得
+                new_mod = obj.modifiers[-1]
+                new_mod.name = item.modname
+                
+                # モディファイヤーのメインパネルけを開く
+                new_mod.show_expanded = True
+                
+                # 元の表示設定を維持
+                new_mod.show_viewport = False
+                new_mod.show_render = False
+                
+                # パラメータを適用
+                if item.parameters:
+                    try:
+                        params = json.loads(item.parameters)
+                        
+                        # ジオメトリノードの場合
+                        if item.modtype == 'NODES' or item.modpath:
+                            for key, value in params.items():
+                                try:
+                                    if key in new_mod:
+                                        # コレクション名参照の処理
+                                        if isinstance(value, str):
+                                            # シーン内のコレクションを検索してみる
+                                            collection = bpy.data.collections.get(value)
+                                            if collection:
+                                                # コレクション参照をセット
+                                                new_mod[key] = collection
+                                                print(f"Restored collection reference for GN: {key} = {value}")
+                                                continue
+                                        
+                                        # オブジェクト参照の処理
+                                        if isinstance(value, str) and value.startswith("OBJ:"):
+                                            obj_name = value[4:]
+                                            obj = bpy.data.objects.get(obj_name)
+                                            if obj:
+                                                try:
+                                                    # ジオメトリノードの場合は直接代入ではなく、辞書形式でアクセス
+                                                    new_mod[key] = obj
+                                                    print(f"Restored object reference: {key} = {obj_name}")
+                                                except Exception as e:
+                                                    # 直接代入が失敗した場合の代替方法
+                                                    try:
+                                                        setattr(new_mod, key, obj)
+                                                        print(f"Restored object reference (using setattr): {key} = {obj_name}")
+                                                    except Exception as e2:
+                                                        print(f"Failed to restore object reference [{key}]: {str(e2)}")
+                                            else:
+                                                print(f"Warning: Object {obj_name} not found")
+                                        # リスト型の値の処理
+                                        elif isinstance(value, list):
+                                            if all(isinstance(x, (int, float)) for x in value):
+                                                value = [float(x) for x in value]
+                                            try:
+                                                new_mod[key] = value
+                                            except Exception as e:
+                                                print(f"Failed to set list value [{key}]: {str(e)}")
+                                        # その他の値の処理
+                                        else:
+                                            # 数値文字列の変換を試みる
+                                            if isinstance(value, str):
+                                                try:
+                                                    if '.' in value:
+                                                        value = float(value)
+                                                    else:
+                                                        value = int(value)
+                                                except ValueError:
+                                                    pass
+                                            try:
+                                                new_mod[key] = value
+                                            except Exception as e:
+                                                print(f"Failed to set value [{key}]: {str(e)}")
+                                        print(f"Set geometry node parameter: {key} = {value} ({type(value)})")
+                                except Exception as e:
+                                    print(f"ジオメトリノード設定エラー [{key}]: {str(e)}")
+                                    
+                        else:
+                            # 通常のモディファイヤー
+                            utils.restore_parameters(new_mod, params)
+                    except Exception as e:
+                        print(f"パラメータ適用エラー: {str(e)}")
+            except Exception as e:
+                print(f"モディファイヤー追加エラー ({item.modname}): {str(e)}")
+                continue
 
-            # パラメータを適用
-            new_mod = obj.modifiers[-1]
-            new_mod.show_viewport = False  # ビューポート表示をオフ
-            new_mod.show_render = True     # レンダリングは有効のまま
-            new_mod.show_in_editmode = False
-
-            # パラメータを適用
-            if item.parameters:
-                try:
-                    params = json.loads(item.parameters)
-                    utils.restore_parameters(new_mod, params)
-                except Exception as e:
-                    print(f"Error applying parameters: {str(e)}")
-
-        self.report({'INFO'}, f"Applied {len(context.scene.modset_preset)} modifiers (Viewport Hidden)")
+        self.report({'INFO'}, f"Applied {len(context.scene.modset_preset)} modifiers (All panels expanded)")
         return {'FINISHED'}
 
 classes = [
