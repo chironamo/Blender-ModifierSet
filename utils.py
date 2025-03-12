@@ -12,15 +12,18 @@ ui_data = {'values': []}
 
 # --- Utility Functions ---
 def str_to_int(val):
+    """Convert string to integer if possible, otherwise return 0"""
     return int(val) if val.isdigit() else 0
 
 def str_to_icon(val):
+    """Convert icon name to Blender internal icon value"""
     enum_items = bpy.types.UILayout.bl_rna.functions["prop"].parameters["icon"].enum_items
     if val in enum_items:
         return enum_items[val].value
     return str_to_int(val)
 
 def check_prop(prop_path, glob, loc):
+    """Safely check if a property exists using eval"""
     try:
         eval(prop_path, glob, loc)
         return True
@@ -238,22 +241,21 @@ def draw_edit_panel(layout_func):
     )
     name_btn.active = bpy.context.scene.modset_prefs[0].showmodname
     
-    # Other buttons
     col2.operator('modset.load_preset', text='Load from Prefs', icon_value=str_to_icon('FILE_REFRESH'), emboss=True)
     
-    # Delete Allボタンを赤く表示
     delete_row = col2.row()
-    delete_row.alert = True  # 警告色（赤）で表示
+    delete_row.alert = True
     delete_row.operator('modset.delete_all', text='Delete all ModSet', icon_value=str_to_icon('TRASH'), emboss=True)
 
 
 def get_modifier_parameters(mod):
+    """Extract parameters from a modifier that can be saved and restored later"""
     ignore_props = {
         "show_viewport", "show_render", "show_in_editmode", "show_on_cage",
         "is_active", "show_expanded", "use_pin_to_last", "use_apply_on_spline"
     }
     
-    # Hook モディファイヤーの内部パラメータを無視
+    # Internal properties to ignore for Hook modifiers
     hook_internal_props = {"matrix_inverse", "center", "matrix"}
     
     params = {}
@@ -268,31 +270,30 @@ def get_modifier_parameters(mod):
         try:
             value = getattr(mod, prop.identifier)
             
-            # コレクション参照の特別処理（Booleanモディファイヤーなど）
+            # Special handling for collection references (Boolean modifier etc.)
             if prop.type == 'POINTER' and prop.identifier == 'collection' and value:
                 if hasattr(value, "name"):
-                    params['collection_name'] = value.name  # コレクション名を保存
+                    params['collection_name'] = value.name  # Save collection name
                 continue
-            # その他のオブジェクト参照は無視
+            # Ignore other object references
             elif prop.type == 'POINTER':
                 continue
                 
-            # 配列型プロパティの処理
+            # Process array properties
             if getattr(prop, 'array_length', 0) > 0:
                 if prop.type == 'BOOLEAN':
                     params[prop.identifier] = [bool(v) for v in value]
                 else:
                     params[prop.identifier] = list(value)
-            # コレクション型の処理（単純に名前リストとして保存）
+            # Process collection properties (save as name list)
             elif prop.type == 'COLLECTION' and value:
-                # 名前のリストとして保存するだけ
                 names = [item.name for item in value if hasattr(item, "name")]
-                if names:  # 空リストは保存しない
+                if names:  # Don't save empty lists
                     params[prop.identifier] = names
-            # 基本データ型のみ保存
+            # Save basic data types only
             elif isinstance(value, (int, float, bool, str)):
                 params[prop.identifier] = value
-            # セット型
+            # Process set types
             elif isinstance(value, (set, frozenset)):
                 params[prop.identifier] = list(value)
         except Exception as e:
@@ -300,10 +301,8 @@ def get_modifier_parameters(mod):
     return params
 
 def restore_parameters(mod, params):
-    # コレクション名からコレクション参照へ変換（Booleanモディファイヤーなど）
     if 'collection_name' in params and hasattr(mod, 'collection'):
         collection_name = params.pop('collection_name')
-        # シーン内のコレクションを検索
         collection = bpy.data.collections.get(collection_name)
         if collection:
             mod.collection = collection
@@ -316,14 +315,13 @@ def restore_parameters(mod, params):
         if not prop:
             continue
 
-        # コレクションの復元（リストとして保存されている場合）
         if prop.type == 'COLLECTION' and isinstance(value, list) and all(isinstance(item, str) for item in value):
             try:
-                # 既存のコレクションをクリア
+                # Clear existing collection
                 if hasattr(getattr(mod, key), "clear"):
                     getattr(mod, key).clear()
                 
-                # 名前リストからコレクション項目を追加
+                # Add collection items from name list
                 coll = getattr(mod, key)
                 for name in value:
                     if hasattr(coll, "add"):
@@ -334,20 +332,20 @@ def restore_parameters(mod, params):
                 print(f"Collection restoration error [{key}]: {str(e)}")
             continue
 
-        # 配列型プロパティの復元処理
+        # Process array properties
         elif getattr(prop, 'array_length', 0) > 0:
             try:
                 setattr(mod, key, tuple(value))
             except Exception as e:
                 print(f"Array restoration error [{key}]: {str(e)}")
-        # 列挙型フラグ処理
+        # Process enum flags
         elif prop.is_enum_flag:
             try:
                 set_value = {item for item in value if item in prop.enum_items}
                 setattr(mod, key, set_value)
             except Exception as e:
                 print(f"Enum setting error [{key}]: {str(e)}")
-        # 基本型処理
+        # Process basic types
         else:
             try:
                 setattr(mod, key, value)
@@ -355,26 +353,26 @@ def restore_parameters(mod, params):
                 print(f"Property assignment error [{key}]: {str(e)}")
 
 def safe_serialize(value):
-    """あらゆるBlenderデータ型を安全にJSON化できる形式に変換する"""
-    # Vector型などmathutilsオブジェクトの処理
+    """Convert any Blender data type to a safe JSON format"""
+    # Process mathutils objects like Vector
     if hasattr(value, "to_list"):
         return value.to_list()
-    # IDPropertyArray型の処理
+    # Process IDPropertyArray
     elif hasattr(value, "__class__") and value.__class__.__name__ == 'IDPropertyArray':
         return list(value)
-    # リスト/タプル型の処理（内部要素も再帰的に処理）
+    # Process list/tuple types (recursively process internal elements)
     elif isinstance(value, (list, tuple)):
         return [safe_serialize(item) for item in value]
-    # 辞書型の処理（内部要素も再帰的に処理）
+    # Process dictionary types (recursively process internal elements)
     elif isinstance(value, dict):
         return {k: safe_serialize(v) for k, v in value.items()}
-    # 集合型の処理
+    # Process set types
     elif isinstance(value, (set, frozenset)):
         return [safe_serialize(item) for item in value]
-    # 基本型はそのまま返す
+    # Basic types are returned as is
     elif isinstance(value, (int, float, bool, str, type(None))):
         return value
-    # その他の型は無視（文字列表現を返すオプションもあり）
+    # Other types are ignored (option to return string representation also exists)
     else:
         print(f"Unsupported type: {type(value).__name__}")
         return None
@@ -389,21 +387,21 @@ def get_geometry_nodes_parameters(mod):
             try:
                 value = mod[prop_name]
                 
-                # コレクション参照を名前として処理
+                # Process collection references as name
                 if hasattr(value, "bl_rna") and value.bl_rna.identifier == 'Collection':
                     params[prop_name] = value.name
                     continue
                 
-                # オブジェクト参照は無視
+                # Ignore object references
                 if isinstance(value, bpy.types.Object):
                     continue
                 
-                # 特殊な型を処理
+                # Process special types
                 if hasattr(value, "to_list"):
                     params[prop_name] = value.to_list()
                 elif hasattr(value, "__class__") and value.__class__.__name__ == 'IDPropertyArray':
                     params[prop_name] = list(value)
-                # 基本的なデータ型
+                    # Basic data types
                 elif isinstance(value, (int, float, bool, str, list, tuple)):
                     params[prop_name] = safe_serialize(value)
                 
