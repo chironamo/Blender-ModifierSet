@@ -1,12 +1,12 @@
 schema_version = "1.0.0"
 id = "modset"
 version = "0.3.0"
-name = "Chiro's ModSet"
-tagline = "Modifier Set"
+name = "Modifier Set"
+tagline = "Register your favorite modifiers with their parameters, quickly add them to objects later"
 maintainer = "Chiro Fujita"
 type = "add-on"
 tags = ["Modifiers"]
-blender_version_min = "4.2.0"
+blender_version_min = "4.3.0"
 license = [
 "SPDX:GPL-3.0-or-later",
 ]

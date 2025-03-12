@@ -5,7 +5,6 @@
                 "column_number": 3,
                 "show_mod_icon": true,
                 "show_mod_name": true,
-                "show_add_always": false,
                 "show_preset": false
             },
             "ModSet": [
@@ -14,126 +13,88 @@
                     "Type": "ARRAY",
                     "Icon": "MOD_ARRAY",
                     "Path": "",
-                    "AssetLibrary": ""
-                },
-                {
-                    "Name": "DataTransfer",
-                    "Type": "DATA_TRANSFER",
-                    "Icon": "MOD_DATA_TRANSFER",
-                    "Path": "",
-                    "AssetLibrary": ""
-                },
-                {
-                    "Name": "WeightedNormal",
-                    "Type": "WEIGHTED_NORMAL",
-                    "Icon": "MOD_NORMALEDIT",
-                    "Path": "",
-                    "AssetLibrary": ""
-                },
-                {
-                    "Name": "Bevel",
-                    "Type": "BEVEL",
-                    "Icon": "MOD_BEVEL",
-                    "Path": "",
-                    "AssetLibrary": ""
+                    "AssetLibrary": "",
+                    "Parameters": "{}"
                 },
                 {
                     "Name": "Mirror",
                     "Type": "MIRROR",
                     "Icon": "MOD_MIRROR",
                     "Path": "",
-                    "AssetLibrary": ""
+                    "AssetLibrary": "",
+                    "Parameters": "{}"
                 },
                 {
-                    "Name": "Boolean",
-                    "Type": "BOOLEAN",
-                    "Icon": "MOD_BOOLEAN",
+                    "Name": "DataTransfer",
+                    "Type": "DATA_TRANSFER",
+                    "Icon": "MOD_DATA_TRANSFER",
                     "Path": "",
-                    "AssetLibrary": ""
+                    "AssetLibrary": "",
+                    "Parameters": "{}"
                 },
                 {
-                    "Name": "Subdivision",
-                    "Type": "SUBSURF",
-                    "Icon": "MOD_SUBSURF",
+                    "Name": "Bevel",
+                    "Type": "BEVEL",
+                    "Icon": "MOD_BEVEL",
                     "Path": "",
-                    "AssetLibrary": ""
+                    "AssetLibrary": "",
+                    "Parameters": "{}"
                 },
                 {
                     "Name": "Shrinkwrap",
                     "Type": "SHRINKWRAP",
                     "Icon": "MOD_SHRINKWRAP",
                     "Path": "",
-                    "AssetLibrary": ""
+                    "AssetLibrary": "",
+                    "Parameters": "{}"
+                },
+                {
+                    "Name": "Boolean",
+                    "Type": "BOOLEAN",
+                    "Icon": "MOD_BOOLEAN",
+                    "Path": "",
+                    "AssetLibrary": "",
+                    "Parameters": "{}"
+                },
+                {
+                    "Name": "Subdivision",
+                    "Type": "SUBSURF",
+                    "Icon": "MOD_SUBSURF",
+                    "Path": "",
+                    "AssetLibrary": "",
+                    "Parameters": "{}"
                 },
                 {
                     "Name": "Decimate",
                     "Type": "DECIMATE",
                     "Icon": "MOD_DECIM",
                     "Path": "",
-                    "AssetLibrary": ""
-                },
-                {
-                    "Name": "Multires",
-                    "Type": "MULTIRES",
-                    "Icon": "MOD_MULTIRES",
-                    "Path": "",
-                    "AssetLibrary": ""
-                },
-                {
-                    "Name": "Curve",
-                    "Type": "CURVE",
-                    "Icon": "MOD_CURVE",
-                    "Path": "",
-                    "AssetLibrary": ""
-                },
-                {
-                    "Name": "Mask",
-                    "Type": "MASK",
-                    "Icon": "MOD_MASK",
-                    "Path": "",
-                    "AssetLibrary": ""
-                },
-                {
-                    "Name": "Triangulate",
-                    "Type": "TRIANGULATE",
-                    "Icon": "MOD_TRIANGULATE",
-                    "Path": "",
-                    "AssetLibrary": ""
+                    "AssetLibrary": "",
+                    "Parameters": "{}"
                 },
                 {
                     "Name": "Solidify",
                     "Type": "SOLIDIFY",
                     "Icon": "MOD_SOLIDIFY",
                     "Path": "",
-                    "AssetLibrary": ""
+                    "AssetLibrary": "",
+                    "Parameters": "{}"
                 },
                 {
-                    "Name": "Skin",
-                    "Type": "SKIN",
-                    "Icon": "MOD_SKIN",
+                    "Name": "Cloth",
+                    "Type": "CLOTH",
+                    "Icon": "MOD_CLOTH",
                     "Path": "",
-                    "AssetLibrary": ""
+                    "AssetLibrary": "",
+                    "Parameters": "{}"
                 },
                 {
-                    "Name": "SurfaceDeform",
-                    "Type": "SURFACE_DEFORM",
-                    "Icon": "MOD_MESHDEFORM",
+                    "Name": "Collision",
+                    "Type": "COLLISION",
+                    "Icon": "MOD_PHYSICS",
                     "Path": "",
-                    "AssetLibrary": ""
-                },
-                {
-                    "Name": "EdgeSplit",
-                    "Type": "EDGE_SPLIT",
-                    "Icon": "MOD_EDGESPLIT",
-                    "Path": "",
-                    "AssetLibrary": ""
-                },
-                {
-                    "Name": "Weld",
-                    "Type": "WELD",
-                    "Icon": "AUTOMERGE_OFF",
-                    "Path": "",
-                    "AssetLibrary": ""
+                    "AssetLibrary": "",
+                    "Parameters": "{}"
                 }
             ]
         }
