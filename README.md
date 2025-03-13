@@ -17,17 +17,23 @@ Save modifiers with their parameter settings
 Asset Library's geometry nodes supported.  
 ![_Feature3](https://github.com/user-attachments/assets/ad8c18aa-af31-4741-b6fe-2e448d27d0d7)
 
+Customize button arrangements, icons, display names, and more  
+![_Feature4](https://github.com/user-attachments/assets/4884dc28-eb07-46ce-ae23-2ff403519ced)
 
-
-Customize button arrangements, icons, display names, and more       (number of columns)  
-Presets can be saved and shared as JSON files    
-
-# Limitation
+Preset will be automatically saved as JSON files. Click this button to open the folder containing it.  
+![OpenPrefsFolder](https://github.com/user-attachments/assets/406aa86f-430e-4ba8-8d05-3520aa634622)
 
 # 🚀 Installation
-Download the latest ZIP file from the Releases page.  
-Open Blender, then go to Edit > Preferences > Add-ons > Install from Disk and select the downloaded ZIP file.  
+1. Download the latest ZIP file from the Releases page.
+2. Open Blender, then go to Edit > Preferences > Add-ons > Install from Disk and select the downloaded ZIP file.  
 
-# 📋 Version Information  
+# ⚠️ Limitation
+- Settings such as object references and UV maps are not saved as presets.  
+- When you select multiple objects and add a modifier with Alt+Click, the modifier is applied to all selected objects, but the parameters might not be reproduced correctly.
+
+# 📋 Version  
 Blender 4.3
 
+# 🌐 My Socials
+[X.com](https://x.com/you16_0823)  
+[Artstation](https://www.artstation.com/chironamo)
