@@ -18,7 +18,7 @@ Asset Library's geometry nodes supported.
 ![_Feature3](https://github.com/user-attachments/assets/ad8c18aa-af31-4741-b6fe-2e448d27d0d7)
 
 Customize button arrangements, icons, display names, and more  
-![_Feature4](https://github.com/user-attachments/assets/4884dc28-eb07-46ce-ae23-2ff403519ced)
+![_Feature4](https://github.com/user-attachments/assets/046b94a3-9f4d-49c7-9fff-9694c28ed319)
 
 Preset will be automatically saved as JSON files. Click this button to open the folder containing it.  
 ![OpenPrefsFolder](https://github.com/user-attachments/assets/406aa86f-430e-4ba8-8d05-3520aa634622)
